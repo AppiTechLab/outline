@@ -1,0 +1,16 @@
+# Caddy obtains and renews a Let's Encrypt certificate automatically.
+# Ports 80 and 443 must be reachable from the internet for this to work.
+
+{
+	email {$LETSENCRYPT_EMAIL}
+}
+
+{$OUTLINE_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy outline:3000 {
+		# Outline needs these to build correct absolute URLs and to know the
+		# original client IP. Websockets are proxied automatically.
+		header_up X-Real-IP {remote_host}
+	}
+}

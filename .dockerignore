@@ -4,6 +4,10 @@
 .circleci
 .DS_Store
 .env*
+# `.env*` above only matches the context root; these catch nested ones such as
+# deploy/.env so secrets never enter the build context.
+**/.env
+**/.env.*
 .eslint*
 .oxlintrc*
 .log

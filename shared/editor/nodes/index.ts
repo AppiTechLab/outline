@@ -4,6 +4,7 @@ import DeleteNearAtom from "../extensions/DeleteNearAtom";
 import History from "../extensions/History";
 import InputRuleUndo from "../extensions/InputRuleUndo";
 import MaxLength from "../extensions/MaxLength";
+import TasksQuery from "../extensions/TasksQuery";
 import TrailingNode from "../extensions/TrailingNode";
 import type { AnyExtensionClass } from "../lib/types";
 import Bold from "../marks/Bold";
@@ -106,6 +107,9 @@ export const richExtensions: Nodes = [
   Image,
   CodeBlock,
   CodeFence,
+  // Renders results beneath ```tasks code fences. Must come after CodeFence so
+  // the node type exists by the time the decoration plugin runs.
+  TasksQuery,
   Blockquote,
   Embed,
   Attachment,

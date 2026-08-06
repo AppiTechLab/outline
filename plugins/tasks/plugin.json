@@ -1,0 +1,6 @@
+{
+  "id": "tasks",
+  "name": "Tasks",
+  "priority": 30,
+  "description": "Obsidian-style task management. Annotate checkboxes with [due:: 2026-08-10] style fields and query them across documents with a ```tasks code block."
+}

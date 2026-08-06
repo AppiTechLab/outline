@@ -1,0 +1,113 @@
+# Outline, built from this source tree, behind Caddy with automatic HTTPS.
+#
+#   cd deploy
+#   cp .env.example .env      # then edit it — see README.md
+#   docker compose up -d --build
+#
+# The repo's root docker-compose.yml is the upstream *development* one (Postgres
+# and Redis only, for `yarn dev`). This file is separate so it doesn't clash.
+
+name: outline
+
+x-outline-build: &outline-build
+  context: ..
+  dockerfile: deploy/Dockerfile
+  args:
+    NODE_BUILD_MEMORY: ${NODE_BUILD_MEMORY:-8192}
+
+x-outline-env: &outline-env
+  NODE_ENV: production
+  # Must exactly match the address you browse to, scheme included, no trailing
+  # slash. Defaults to localhost; set OUTLINE_URL in .env to publish it.
+  URL: ${OUTLINE_URL:-http://localhost:3000}
+  PORT: "3000"
+  # Always false here: on localhost there is no TLS to force, and behind Caddy
+  # the proxy already redirects http -> https, so leaving this on would loop.
+  FORCE_HTTPS: "false"
+  PROXY_HEADERS_TRUSTED: "true"
+  DATABASE_URL: postgres://${POSTGRES_USER:-outline}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-outline}
+  PGSSLMODE: disable
+  REDIS_URL: redis://redis:6379
+  FILE_STORAGE: local
+  FILE_STORAGE_LOCAL_ROOT_DIR: /var/lib/outline/data
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-outline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-outline}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-outline} -d ${POSTGRES_DB:-outline}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Migrations are not a separate step: server/scripts/checkMigrations.ts runs
+  # `migrations.up()` on startup, guarded by a Redis mutex so multiple web
+  # processes can't race. Nothing to run by hand on first boot or after upgrade.
+  outline:
+    build: *outline-build
+    image: outline-local:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      <<: *outline-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - outline-data:/var/lib/outline/data
+    # Bound to loopback, so it is reachable at http://localhost:3000 but never
+    # exposed on the network. Harmless to leave on when Caddy is in front.
+    ports:
+      - "127.0.0.1:${OUTLINE_PORT:-3000}:3000"
+
+  # Only started when the "proxy" profile is enabled:
+  #   docker compose --profile proxy up -d
+  # Not needed for localhost, where you reach Outline directly on :3000.
+  caddy:
+    image: caddy:2-alpine
+    profiles:
+      - proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      OUTLINE_DOMAIN: ${OUTLINE_DOMAIN:-}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - outline
+
+volumes:
+  postgres-data:
+  redis-data:
+  outline-data:
+  caddy-data:
+  caddy-config:

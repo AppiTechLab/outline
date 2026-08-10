@@ -105,6 +105,7 @@ const router = new Router();
 
 router.post(
   "documents.list",
+  rateLimiter(RateLimiterStrategy.OneHundredPerMinute),
   auth(),
   pagination(),
   validate(T.DocumentsListSchema),
@@ -1622,29 +1623,10 @@ router.post(
       throw ValidationError("one of attachmentId or file is required");
     }
 
-    let parentDocument: Document | null = null;
-    let collection: Collection | null = null;
-
-    if (parentDocumentId) {
-      parentDocument = await Document.findByPk(parentDocumentId, {
-        userId: user.id,
-      });
-
-      if (parentDocument?.collectionId) {
-        collection = await Collection.findByPk(parentDocument.collectionId, {
-          userId: user.id,
-        });
-      }
-
-      authorize(user, "createChildDocument", parentDocument, {
-        collection,
-      });
-    } else if (collectionId) {
-      collection = await Collection.findByPk(collectionId, {
-        userId: user.id,
-      });
-      authorize(user, "createDocument", collection);
-    }
+    const { collection } = await authorizeDocumentCreate(ctx, {
+      collectionId,
+      parentDocumentId,
+    });
 
     let key: string;
     let fileName: string;
@@ -1685,7 +1667,7 @@ router.post(
         mimeType,
       },
       userId: user.id,
-      collectionId: collectionId ?? parentDocument?.collectionId,
+      collectionId: collection?.id,
       parentDocumentId,
       publish,
       authType: ctx.state.auth.type,

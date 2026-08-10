@@ -1,0 +1,43 @@
+# Override for the AppiTech VM (VLBELAPPIDC), which fronts everything with a
+# shared Traefik instance rather than the Caddy service in the base file.
+#
+#   cd /opt/apps/outline/deploy
+#   docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+#
+# Do NOT pass --profile proxy: Caddy stays out of it entirely.
+#
+# Two things must match /opt/traefik/docker-compose.yml, which owns the
+# entrypoint and certificate resolver names. `websecure` and `letsencrypt` are
+# the conventional ones; check before assuming.
+
+services:
+  outline:
+    # Data lives under /srv/data per the server's documented layout, rather
+    # than in Docker-managed volumes under /var/lib/docker.
+    volumes:
+      - /srv/data/outline/uploads:/var/lib/outline/data
+    networks:
+      - default
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      # Required when a container is on more than one network, or Traefik has
+      # to guess which address to route to.
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.outline.rule=Host(`${OUTLINE_DOMAIN}`)"
+      - "traefik.http.routers.outline.entrypoints=websecure"
+      - "traefik.http.routers.outline.tls=true"
+      - "traefik.http.routers.outline.tls.certresolver=letsencrypt"
+      - "traefik.http.services.outline.loadbalancer.server.port=3000"
+
+  postgres:
+    volumes:
+      - /srv/data/outline/postgres:/var/lib/postgresql/data
+
+  redis:
+    volumes:
+      - /srv/data/outline/redis:/data
+
+networks:
+  traefik-public:
+    external: true

@@ -1,0 +1,6 @@
+{
+  "id": "gitlab-tasks",
+  "name": "GitLab Tasks",
+  "priority": 35,
+  "description": "Push tagged Outline tasks to GitLab as issues, and tick tasks back off when their issue is closed."
+}

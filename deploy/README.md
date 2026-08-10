@@ -69,10 +69,50 @@ Leave `OUTLINE_URL` at `http://localhost:3000` for a local install.
 
 Outline needs an SSO provider to create the very first account — email sign-in
 only works for users that already exist, so it can't bootstrap an install.
-This install uses **Discord** (Option A). The others are documented in case you
-add them later; Outline supports several providers at once.
+This install uses **GitLab via OIDC** (Option A). The others are documented in
+case you add them later; Outline supports several providers at once, and a user
+can authenticate through more than one.
 
-### Option A — Discord
+### Option A — GitLab (via OIDC)
+
+GitLab is an OpenID Connect provider, so the generic OIDC plugin handles it —
+the bundled `gitlab` plugin is unfurling and issue linking, not sign-in.
+
+1. Go to [gitlab.com/-/user_settings/applications](https://gitlab.com/-/user_settings/applications)
+   — avatar → **Edit profile** → **Applications**
+2. Redirect URI: `http://localhost:3000/auth/oidc.callback`
+3. Scopes: **`openid`, `profile`, `email`** — not `api`. Mark it confidential.
+4. Put the id and secret in `.env`, with `OIDC_ISSUER_URL=https://gitlab.com`,
+   then rebuild.
+
+`OIDC_ISSUER_URL` is the base URL only; Outline reads
+`https://gitlab.com/.well-known/openid-configuration` and discovers the
+authorize, token and userinfo endpoints from it.
+
+> **Everyone signing in needs a public email on their GitLab profile.** GitLab
+> omits both `email` and `email_verified` without one, and Outline can't create
+> an account with no email. It also can't *link* to an existing account without
+> `email_verified` — `userProvisioner` throws rather than guessing.
+
+#### Migrating from another provider
+
+Order matters, or you can lock yourself out of your own workspace:
+
+1. **Leave the old provider configured.** Add the OIDC variables alongside it
+   and rebuild — both buttons appear.
+2. **Sign in with GitLab and check where you land.** Settings → Members should
+   still show one account, and you should still be an Admin. Outline links the
+   new authentication to the existing user when the verified email matches.
+3. If a *second* account appeared instead, the emails differ. Sign back in with
+   the old provider, fix the public email in GitLab to match, delete the stray
+   account, and retry.
+4. **Only then** clear the old provider's variables and recreate the container.
+
+For a self-hosted GitLab, use its base URL instead. Private networks work
+without extra configuration — `oidcDiscovery.ts` already passes
+`allowPrivateIPAddress: true`.
+
+### Option B — Discord
 
 Works with an ordinary personal Discord account. No organization, no custom
 domain, no admin approval.
@@ -105,7 +145,7 @@ Leave it unset and any Discord account on the internet can create an account on
 your wiki. To narrow it further, `DISCORD_SERVER_ROLES` restricts sign-in to
 holders of specific roles.
 
-### Option B — Microsoft Entra ID (work or school account)
+### Option C — Microsoft Entra ID (work or school account)
 
 1. Go to the [Azure portal](https://portal.azure.com) → **Microsoft Entra ID** →
    **App registrations** → **New registration**
@@ -135,7 +175,7 @@ afterwards under **Settings → Security** in Outline.
 > (`@outlook.com`, `@hotmail.com`, `@live.com`) have no Entra tenant, and the
 > Graph `/organization` endpoint Outline calls doesn't support them.
 
-### Option C — Google
+### Option D — Google
 
 1. Go to the [Google Cloud Console credentials page](https://console.cloud.google.com/apis/credentials)
 2. Configure the OAuth consent screen (Internal if you're on Workspace, otherwise External)
@@ -185,8 +225,18 @@ Nothing needs rebuilding — it's config plus one extra container.
 1. Point an A/AAAA record at this host and open ports 80 and 443
 2. In `.env` set `OUTLINE_DOMAIN`, `LETSENCRYPT_EMAIL`, and change
    `OUTLINE_URL` to `https://your.domain`
-3. Add `https://your.domain/auth/discord.callback` to the Discord app's
-   redirect list
+3. **Add the https redirect URIs to both GitLab applications.** Miss this and
+   nobody can sign in after the move:
+
+   | Application | Add |
+   | --- | --- |
+   | Outline sign-in (OIDC) | `https://your.domain/auth/oidc.callback` |
+   | Outline integration | `https://your.domain/api/gitlab.callback` |
+
+   Keep the localhost entries alongside them — GitLab allows several, and
+   Outline sends whichever matches `OUTLINE_URL`. That way a local instance
+   still works for development.
+
 4. Start with the proxy profile:
 
    ```bash
@@ -198,6 +248,30 @@ if it doesn't.
 
 Changing `OUTLINE_URL` on an existing workspace signs everyone out — sessions
 are bound to the origin — but the data is untouched.
+
+### Also worth doing before going public
+
+**Configure SMTP.** On localhost it was pointless because invite links pointed
+at the recipient's own machine. On a real domain it's the difference between
+inviting colleagues and not — and without it, invites and notifications fail
+silently rather than erroring.
+
+**Open only 80 and 443.** Postgres, Redis and Outline itself are bound to
+`127.0.0.1` in the compose file, so only Caddy is reachable. Note that on Linux,
+Docker writes its own iptables rules and can bypass UFW — the loopback binding
+is what protects you here, not the firewall, so don't "fix" those port mappings
+to `0.0.0.0`.
+
+**Set up scheduled backups.** The manual `pg_dump` under *Backups* below is
+fine for a laptop. On a server it needs to be a cron job with off-box copies,
+because migrations run automatically on upgrade and are one-way.
+
+**Review Settings → Security.** Default role Member rather than Admin, and
+restrict who can invite. Ten people is where this drifts.
+
+**Consider where the server lives.** For EU-funded research, hosting and any
+email provider are usually a data-protection question before they're a
+technical one. Worth a word with whoever owns that at your institution.
 
 ## Everyday commands
 
@@ -271,6 +345,22 @@ school one.
 browsing to (scheme and host, no trailing slash), and `FORCE_HTTPS` should stay
 `false` because Caddy already handles the redirect.
 
+## Deploying to the AppiTech VM
+
+That machine fronts everything with a shared Traefik rather than Caddy, and
+keeps data under `/srv/data`. See **`DEPLOY-HEVS.md`** and use the override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+```
+
+## For people using the wiki
+
+`../WORKFLOW.md` is the team-facing page: tag conventions, the capture → push →
+pull loop, and the known rough edges. Paste it into the wiki itself once it's
+running — it's the one piece of documentation colleagues need and the only one
+that isn't about running the server.
+
 ## Local modifications
 
 This tree is not vanilla Outline. Rebuilding after `git pull` picks these up
@@ -278,6 +368,22 @@ automatically, but they're worth knowing about when resolving merge conflicts:
 
 - `plugins/tasks/` — new plugin, Obsidian-style task queries. Self-contained;
   see `plugins/tasks/README.md`.
+- `plugins/gitlab-tasks/` — new plugin, pushes tagged tasks to GitLab as issues
+  and ticks them off when closed. Self-contained; see its README. Distinct from
+  the bundled `plugins/gitlab/`, which is OAuth sign-in.
+- `plugins/tags/` — new plugin, controlled tag vocabulary with `#` autocomplete
+  and a browser under Settings → Workspace → Tags.
+- `app/editor/extensions/TagMenu.tsx`, `app/editor/components/TagMenu.tsx` — new
+  files, the `#` autocomplete menu.
+- `app/editor/extensions/TagHighlight.ts` — new file, highlights tags, makes
+  them clickable and emits anchors for line-level deep links.
+- `app/editor/extensions/index.ts` — +6 lines registering the above. Client
+  plugins can't register editor extensions, so these are unavoidable.
+- `app/scenes/Tags/index.tsx` — new, one line re-exporting the tag page.
+- `app/routes/scenes.ts`, `app/routes/authenticated.tsx` — the `/tags/:tag+`
+  route. Client plugins can't register routes either.
+- `app/components/Sidebar/App.tsx` — +6 lines adding the Tags section. The
+  highest-churn of these files upstream; check it first after a merge.
 - `shared/editor/extensions/TasksQuery.ts` — new file, renders task query
   results under a ```` ```tasks ```` block.
 - `shared/editor/nodes/index.ts`, `shared/editor/lib/code.ts` — a few lines each
@@ -286,11 +392,10 @@ automatically, but they're worth knowing about when resolving merge conflicts:
 - `.dockerignore` — added `**/.env` so `deploy/.env` stays out of the build
   context.
 
-Check the core diff after pulling upstream:
-
-```bash
-git diff upstream/main -- shared/editor .dockerignore
-```
+**Before pulling from upstream, read `../UPGRADING.md`.** It has the backup
+step, the review command, and a checklist of manual verifications — most of
+these patches fail silently rather than loudly, so a clean build is not
+evidence that they still work.
 
 ## Note on the root `docker-compose.yml`
 

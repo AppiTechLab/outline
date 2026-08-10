@@ -1,0 +1,6 @@
+{
+  "id": "tags",
+  "name": "Tags",
+  "priority": 40,
+  "description": "Browse and search documents by the #hashtags written in them."
+}

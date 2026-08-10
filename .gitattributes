@@ -1,0 +1,27 @@
+# Normalise line endings.
+#
+# Without this, a Windows checkout rewrites every file to CRLF and `git status`
+# reports the entire tree as modified — which buries the handful of files that
+# genuinely differ from upstream. Since this fork carries deliberate core
+# patches that must be reviewed after every merge, that noise is not survivable.
+#
+# After adding this file, renormalise once:
+#
+#   git add --renormalize .
+#   git commit -m "chore: normalise line endings"
+#
+* text=auto eol=lf
+
+# Binary files git should never touch.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary

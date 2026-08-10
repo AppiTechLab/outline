@@ -178,6 +178,45 @@ describe("applyQuery", () => {
     expect(result.tasks.map((t) => t.text)).toEqual(["finished #home"]);
   });
 
+  describe("nested tags", () => {
+    const nested = [
+      build("gate work #PM/project/Gate", false, 0),
+      build("other work #PM/project/Other", false, 1),
+      build("unrelated #home", false, 2),
+    ];
+
+    it("matches the exact tag", () => {
+      expect(
+        applyQuery(nested, parseQuery("tag includes PM/project/Gate", now)).tasks
+      ).toHaveLength(1);
+    });
+
+    it("matches a parent tag against its children", () => {
+      expect(
+        applyQuery(nested, parseQuery("tag includes PM/project", now)).tasks
+      ).toHaveLength(2);
+      expect(
+        applyQuery(nested, parseQuery("tag includes PM", now)).tasks
+      ).toHaveLength(2);
+    });
+
+    it("does not match a partial segment", () => {
+      // `PM/pro` is not an ancestor of `PM/project/Gate`.
+      expect(
+        applyQuery(nested, parseQuery("tag includes PM/pro", now)).tasks
+      ).toHaveLength(0);
+    });
+
+    it("negation covers descendants too", () => {
+      expect(
+        applyQuery(
+          nested,
+          parseQuery("tag does not include PM/project", now)
+        ).tasks.map((t) => t.text)
+      ).toEqual(["unrelated #home"]);
+    });
+  });
+
   it("matches path against the collection name and document title", () => {
     expect(
       applyQuery(tasks, parseQuery("path includes engineering", now)).total

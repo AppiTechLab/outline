@@ -11,4 +11,6 @@ export const Document = lazy(() => import("~/scenes/Document"));
 export const Drafts = lazy(() => import("~/scenes/Drafts"));
 export const Home = lazy(() => import("~/scenes/Home"));
 export const Search = lazy(() => import("~/scenes/Search"));
+/** Lists every line mentioning a tag. Backed by plugins/tags. */
+export const Tags = lazy(() => import("~/scenes/Tags"));
 export const Trash = lazy(() => import("~/scenes/Trash"));

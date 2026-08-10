@@ -12,6 +12,8 @@ import PasteHandler from "~/editor/extensions/PasteHandler";
 import PreventTab from "~/editor/extensions/PreventTab";
 import SelectionToolbarExtension from "~/editor/extensions/SelectionToolbar";
 import SmartText from "~/editor/extensions/SmartText";
+import TagHighlightExtension from "~/editor/extensions/TagHighlight";
+import TagMenuExtension from "~/editor/extensions/TagMenu";
 
 type Nodes = AnyExtensionClass[];
 
@@ -23,6 +25,11 @@ export const withUIExtensions = (nodes: Nodes) => [
   BlockMenuExtension,
   EmojiMenuExtension,
   MentionMenuExtension,
+  // Offers the approved tag vocabulary on `#`. Provided by plugins/tags.
+  TagMenuExtension,
+  // Highlights #tags, makes them clickable, and emits per-occurrence anchors
+  // so the tag browser can link to a specific line.
+  TagHighlightExtension,
   FindAndReplaceExtension,
   HoverPreviewsExtension,
   SelectionToolbarExtension,

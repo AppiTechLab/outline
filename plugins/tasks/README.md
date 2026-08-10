@@ -37,6 +37,9 @@ Fields are stripped from the rendered task text; tags are kept inline.
 
 ## Querying
 
+> Full filter reference with worked examples: **[FILTERS.md](./FILTERS.md)**.
+> The summary below covers the common cases.
+
 Put one instruction per line inside a fenced block with the `tasks` language.
 Blank lines and lines starting with `#` are ignored.
 
@@ -78,6 +81,7 @@ priority below high
 
 tag includes work
 tag does not include archive
+tag includes PM/project
 
 text includes review
 text does not include draft
@@ -87,6 +91,12 @@ path does not include Archive
 ```
 
 `path` matches against the collection name and the document title.
+
+Tags may be written with or without the leading `#`, and match
+case-insensitively. **Nested tags roll up**, as in the `tags` plugin: a task
+tagged `#PM/project/Gate` is found by `tag includes PM/project` and by
+`tag includes PM`. Only whole segments count — `tag includes PM/pro` matches
+nothing.
 
 ### Sorting and display
 

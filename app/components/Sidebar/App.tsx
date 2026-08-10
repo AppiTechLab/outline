@@ -29,6 +29,7 @@ import DragPlaceholder from "./components/DragPlaceholder";
 import { DismissableSidebarAction } from "./components/DismissableSidebarAction";
 import HistoryNavigation from "./components/HistoryNavigation";
 import Section from "./components/Section";
+import TagsLink from "../../../plugins/tags/client/TagsLink";
 import SharedWithMe from "./components/SharedWithMe";
 import SidebarButton from "./components/SidebarButton";
 import SidebarLink from "./components/SidebarLink";
@@ -135,6 +136,11 @@ function AppSidebar() {
             </Section>
             <Section>
               <Collections />
+            </Section>
+            <Section>
+              {/* Lists the tag vocabulary as a tree. Provided by plugins/tags;
+                  client plugins cannot register sidebar entries. */}
+              <TagsLink />
             </Section>
             {can.createDocument && (
               <Section auto>

@@ -281,7 +281,14 @@ function matches(task: Task, filter: Filter): boolean {
       }
 
     case "tag": {
-      const present = task.tags.includes(filter.value);
+      // Nested tags roll up, matching the tags plugin: a task tagged
+      // `#PM/project/Gate` satisfies `tag includes PM/project` and
+      // `tag includes PM`. Without this, the same tag would behave one way in
+      // the tag browser and another in a task query.
+      const prefix = `${filter.value}/`;
+      const present = task.tags.some(
+        (tag) => tag === filter.value || tag.startsWith(prefix)
+      );
       return filter.negated ? !present : present;
     }
 

@@ -141,6 +141,13 @@ function AuthenticatedRoutes() {
                 path={`${searchPath()}/:query?`}
                 component={Scenes.Search.Component}
               />
+              {/* `:tag+` so nested tags keep their slashes as path segments,
+                  e.g. /tags/pm/assign/antoine */}
+              <Route
+                exact
+                path="/tags/:tag+"
+                component={Scenes.Tags.Component}
+              />
               {env.isDevelopment && (
                 <Route exact path={debugPath()} component={Debug} />
               )}

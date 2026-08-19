@@ -15,7 +15,6 @@ import type {
 } from "~/types";
 import Analytics from "~/utils/Analytics";
 import history from "~/utils/history";
-import { pushOrOpenInSplit } from "~/utils/splitView";
 import type { ActionImpl, Action as KbarAction } from "kbar";
 
 /** A command bar action, with the additional properties that Outline renders. */
@@ -271,12 +270,16 @@ export function actionToKBar(
   // priority orders the sections themselves – given a bare string it would
   // instead order them by the match score of whichever result happens to come
   // first, which lets a section with an exact keyword match jump to the top.
+  // The command bar falls back to that same match score when the priority is
+  // falsy, so the offset keeps an undeclared priority of zero out of the way
+  // while preserving the relative order of the declared values.
   const sectionWithPriority = {
     name: section,
     priority:
-      typeof action.section !== "string" && "priority" in action.section
+      sectionPriorityOffset +
+      (typeof action.section !== "string" && "priority" in action.section
         ? ((action.section.priority as number) ?? 0)
-        : 0,
+        : 0),
   };
 
   const priority = 1 + (action.priority ?? 0);
@@ -343,17 +346,7 @@ export async function performAction(
     action.variant === "action"
       ? () => action.perform(context)
       : action.variant === "internal_link"
-        ? () => {
-            const to = resolve<LocationDescriptor>(action.to, context);
-
-            // Holding the modifier while triggering a command bar action
-            // opens the route in the secondary pane of the split view.
-            if (context.isCommandBar) {
-              pushOrOpenInSplit(history, to);
-            } else {
-              history.push(to);
-            }
-          }
+        ? () => history.push(resolve<LocationDescriptor>(action.to, context))
         : () => window.open(action.url, action.target);
 
   const result = perform();
@@ -366,6 +359,13 @@ export async function performAction(
 
   return result;
 }
+
+/**
+ * Added to every section priority handed to the command bar, so that a section
+ * which declares no priority is still ordered by its priority rather than by
+ * match score. Must be larger than the largest declared priority in magnitude.
+ */
+const sectionPriorityOffset = 10;
 
 function hasVisibleItems(items: MenuItem[]) {
   const applicableTypes = ["button", "link", "route", "group", "submenu"];

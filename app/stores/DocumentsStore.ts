@@ -11,7 +11,6 @@ import type { Filter } from "@shared/helpers/FilterHelper";
 import { subtractDate } from "@shared/utils/date";
 import { bytesToHumanReadable } from "@shared/utils/files";
 import naturalSort from "@shared/utils/naturalSort";
-import type { JSONObject } from "@shared/types";
 import type RootStore from "~/stores/RootStore";
 import Store from "~/stores/base/Store";
 import Document from "~/models/Document";
@@ -248,11 +247,10 @@ export default class DocumentsStore extends Store<Document> {
       (d) => d.deletedAt
     );
 
-    // The deleting user is recorded as the last to modify the document.
     if (options.userId) {
       deleted = filter(
         deleted,
-        (document) => document.updatedBy?.id === options.userId
+        (document) => document.deletedBy?.id === options.userId
       );
     }
 
@@ -455,7 +453,7 @@ export default class DocumentsStore extends Store<Document> {
 
   @action
   searchTitles = async (options?: SearchParams): Promise<SearchResult[]> => {
-    const compactedOptions = omitBy(options, (o) => !o) as JSONObject;
+    const compactedOptions = omitBy(options, (o) => !o);
     const res = await client.post("/documents.search_titles", {
       ...compactedOptions,
     });
@@ -486,7 +484,7 @@ export default class DocumentsStore extends Store<Document> {
 
   @action
   search = async (options: SearchParams): Promise<SearchResult[]> => {
-    const compactedOptions = omitBy(options, (o) => !o) as JSONObject;
+    const compactedOptions = omitBy(options, (o) => !o);
     const res = await client.post("/documents.search", {
       ...compactedOptions,
     });
@@ -659,11 +657,11 @@ export default class DocumentsStore extends Store<Document> {
       // acting user against the document and its descendants. The trash relies
       // on this to filter by who deleted an item before the next fetch.
       const user = this.rootStore.auth.user ?? undefined;
-      const setUpdatedBy = (doc: Document) => {
-        doc.updatedBy = user;
-        doc.childDocuments.forEach(setUpdatedBy);
+      const setDeletedBy = (doc: Document) => {
+        doc.deletedBy = user;
+        doc.childDocuments.forEach(setDeletedBy);
       };
-      setUpdatedBy(document);
+      setDeletedBy(document);
     }
 
     // check to see if we have any shares related to this document already

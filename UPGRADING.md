@@ -27,6 +27,22 @@ has moved forward and rolling back needs a database restore, not a
 
 ## The checklist
 
+### 0. See how much care this needs
+
+```powershell
+git fetch upstream --tags
+git log --oneline HEAD..upstream/main -- ":/app" ":/shared/editor"
+```
+
+**The `:/` prefix matters.** Git pathspecs are relative to your current
+directory, so `-- app/editor` run from `deploy\` silently matches nothing and
+reports a clean bill of health for a merge that will conflict. `:/` anchors to
+the repository root.
+
+Empty means nothing upstream touched the areas you've patched — rebuild and
+smoke test. Non-empty means read the commit titles first; they usually tell you
+what will conflict and what to test afterwards.
+
 ### 1. Back up
 
 ```powershell
@@ -36,16 +52,33 @@ docker compose exec -T postgres pg_dump -U outline outline | gzip > backup-$(Get
 
 Migrations are one-way. This is the only way back.
 
-### 2. Merge on a branch
+### 2. Merge upstream — on your own machine, not the server
+
+The VM's outbound access is limited to `gitlab.com` and `gitlab.hevs.ch`. It
+cannot reach GitHub, so it can never merge from upstream. That's a feature:
+the server only ever deploys an already-resolved result.
+
+Remotes on your machine:
+
+| | |
+| --- | --- |
+| `upstream` | `github.com/outline/outline` — read only, never pushed to |
+| `origin` | `github.com/AppiTechLab/outline` for fetch, pushing to **both** GitHub and `gitlab.com/appitech/internal/wiki` |
+
+That second push URL is what the server pulls from.
 
 ```powershell
 cd D:\Projects\outline
+git fetch upstream --tags
 git switch -c upgrade-$(Get-Date -Format yyyy-MM-dd)
-git pull origin main
+git merge upstream/main
 ```
 
-`origin` is outline/outline itself, so this merges upstream directly into your
-work. Resolving on a branch means `main` stays runnable if you abandon it.
+Resolving on a branch means `main` stays runnable if you abandon it.
+
+Note the version lives in `package.json` and is bumped in a release commit. If
+`upstream/main` still shows the old version, the release is a tag that hasn't
+landed on main — merge `v1.9.2` rather than `upstream/main`.
 
 ### 3. Review your own diff
 
@@ -81,12 +114,28 @@ Watch for `Running migrations…` and `Failed to load plugin`.
 | `POST /api/gitlabTasks.status` | `configured: true`, your bot account | `gitlab-tasks` env or GitLab API |
 | Sign in via GitLab | Lands in your existing account | OIDC config |
 
-### 6. Merge back
+### 6. Merge back and publish
 
 ```powershell
 git switch main
 git merge upgrade-YYYY-MM-DD
+git push origin main          # goes to GitHub and GitLab
 ```
+
+### 7. Deploy on the server
+
+Only now, and only from GitLab:
+
+```bash
+cd /opt/apps/outline
+git pull
+cd deploy
+docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+```
+
+Steps 1 and 5 apply again here — back up the database first, and re-run the
+manual checks against the real instance. Verifying locally proves the merge
+resolved; it doesn't prove the deployment works.
 
 ---
 
@@ -101,7 +150,19 @@ here.
 | `app/editor/components/TagMenu.tsx` | `SuggestionsMenu` calling `onClick` for items named `noop` | Menu appears, selecting a tag inserts nothing |
 | `app/editor/extensions/TagHighlight.ts` | `Editor.scrollToAnchor` resolving `window.location.hash` to an element | Tags highlight, but line links land at the top of the document |
 | `shared/editor/extensions/TasksQuery.ts` | The fence node being named `code_fence`; `Extension.allowInReadOnly` | Query blocks render as plain code |
+| `app/components/Sidebar/App.tsx` | The surrounding sidebar structure | Conflicts loudly — the good kind |
 | `plugins/*/server` | `DocumentHelper.toMarkdown`, `documentUpdater` patch mode, `PluginManager` hooks | API errors, visible in logs |
+
+### Precedent: the August 2026 sidebar conflict
+
+Upstream #13505 made sidebar sections drag-reorderable, replacing the hardcoded
+`<Section>` list with `sectionOrder.map()` over a `SidebarSection` enum. Our
+`<TagsLink />` sat exactly there and conflicted.
+
+Resolution, and the one to repeat: **keep upstream's structure, append the Tags
+`<Section>` after the loop.** Tags stays outside the reorderable set — adding it
+to the enum would mean patching `@shared/types` as well, a further core file so
+that one section can be dragged. Not worth it.
 
 ### Already scheduled to break
 

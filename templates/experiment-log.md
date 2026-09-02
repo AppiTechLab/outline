@@ -37,8 +37,8 @@ can't be reproduced six months later. Record them even when they seem trivial.*
 | *equipment* | *value, including version or serial* |
 | *settings* | *value* |
 
-**Data location:** *path, repository or dataset identifier — not attached here.
-The wiki holds the account of the work, not the data.*
+**Data location:** *link to the SharePoint file or folder — not attached here.
+The wiki holds the account of the work, not the data. See ATTACHMENTS.md.*
 
 ---
 

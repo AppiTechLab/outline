@@ -163,6 +163,21 @@ Without quotes the `#` is stripped and you match the plain word instead.
 
 ---
 
+## Files and attachments
+
+**Data goes in SharePoint, the wiki links to it.** Only small images —
+screenshots, plots, diagrams — belong in a page.
+
+The upload limit refuses anything over 10 MB, which is the line: generous for a
+figure, hopeless for a dataset.
+
+The reason is portability. An attached file is served from a URL that only
+means something inside this wiki, so exporting the content anywhere breaks every
+one of those links. A SharePoint URL keeps working.
+
+See `ATTACHMENTS.md` for the naming convention and the rules on participant
+data.
+
 ## Conventions worth keeping
 
 **Tag pages, not tag sprawl.** Add to the vocabulary deliberately. It's a shared

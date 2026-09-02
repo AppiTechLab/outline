@@ -113,11 +113,60 @@ when debugging.
 ## After first boot
 
 1. **Sign in** with GitLab. Verify you land as Admin.
-2. **Settings → Security → require an invite.** Without it, *any* gitlab.com
-   account that finds the URL gets provisioned. This matters the moment the
-   host is public.
+2. **Close registration** — see below. Do this first; everything else can wait.
 3. Create the **Tag vocabulary** page.
 4. Add SMTP once you have the HES-SO relay details, then invite people.
+
+### Closing registration
+
+This is the most important setting on this server, and it **cannot be done from
+the UI**. `app/scenes/Settings/Security.tsx` wraps the "Require invites" toggle
+in `{isCloudHosted && …}`, so self-hosted instances never render it. The server
+enforces the flag regardless — only the control is missing.
+
+Why it matters here: gitlab.com is a *public* identity provider. Anyone can open
+an account there in a minute. On a DMZ-exposed host with GitLab OIDC as the only
+provider and no invite requirement, this wiki is effectively open registration —
+authenticate with any GitLab account and `userProvisioner` creates you a user.
+
+Set it through the API. Create a key at **Settings → API and Access**:
+
+```powershell
+$h = @{ Authorization = "Bearer ol_api_..."; "Content-Type" = "application/json" }
+$u = "https://wiki.appitech.hevs.ch/api/team.update"
+
+# Require an invite before an account can be created
+Invoke-RestMethod -Uri $u -Method Post -Headers $h `
+  -Body '{"inviteRequired": true}' | ConvertTo-Json -Depth 3
+
+# Belt and braces: also restrict which email domains may sign in
+Invoke-RestMethod -Uri $u -Method Post -Headers $h `
+  -Body '{"allowedDomains": ["hevs.ch"]}' | ConvertTo-Json -Depth 3
+```
+
+Both persist on the team record, so they survive rebuilds and don't need
+reapplying after an upgrade.
+
+The two checks run in sequence in `userProvisioner`, and only when no user
+record already matches the email — existing accounts are never affected:
+
+```ts
+if (team?.inviteRequired) { throw InviteRequiredError(); }
+if (team && !(await team.isDomainAllowed(email))) { throw DomainNotAllowedError(); }
+```
+
+Two cautions:
+
+- **Invite everyone who needs access first.** A colleague who has been told
+  about the wiki but hasn't signed in yet will be blocked once this is on.
+- **`allowedDomains` matches the verified email from GitLab**, which is the
+  *public email* on their gitlab.com profile — not their GitLab username or
+  their institutional login. If a colleague's public email is a personal
+  address, restricting to `hevs.ch` locks them out. Confirm before enabling, or
+  use `inviteRequired` alone, which is the stronger control anyway.
+
+Verify it took effect by signing in from a private window with an unrelated
+GitLab account, if you have one. Expect a refusal after the GitLab redirect.
 
 ---
 
@@ -132,9 +181,14 @@ cd deploy
 docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
 ```
 
-**Read `../UPGRADING.md` before pulling from upstream Outline.** This tree
-carries eleven core patches that fail silently rather than loudly — a clean
-build is not evidence they still work.
+The server's `origin` is `gitlab.com/appitech/internal/wiki`. It cannot reach
+GitHub — outbound is limited to `gitlab.com` and `gitlab.hevs.ch` — so **never
+merge upstream here**. That happens on a workstation, gets pushed to GitLab,
+and the server pulls the finished result.
+
+**Read `../UPGRADING.md` before an upstream merge.** This tree carries eleven
+core patches that fail silently rather than loudly — a clean build is not
+evidence they still work.
 
 ---
 

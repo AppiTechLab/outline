@@ -266,8 +266,22 @@ to `0.0.0.0`.
 fine for a laptop. On a server it needs to be a cron job with off-box copies,
 because migrations run automatically on upgrade and are one-way.
 
-**Review Settings → Security.** Default role Member rather than Admin, and
-restrict who can invite. Ten people is where this drifts.
+**Close registration.** With a public identity provider such as gitlab.com as
+your only sign-in method, an exposed instance is open registration until you
+require invites. Note the toggle is hidden on self-hosted — it's wrapped in
+`isCloudHosted` — so it must be set through the API:
+
+```bash
+curl -X POST https://your.domain/api/team.update \
+  -H "Authorization: Bearer $OUTLINE_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"inviteRequired": true}'
+```
+
+The server enforces it regardless of hosting; only the control is missing.
+
+**Review the rest of Settings → Security.** Default role Member rather than
+Admin, and restrict who can invite. Ten people is where this drifts.
 
 **Consider where the server lives.** For EU-funded research, hosting and any
 email provider are usually a data-protection question before they're a
@@ -353,6 +367,12 @@ keeps data under `/srv/data`. See **`DEPLOY-HEVS.md`** and use the override:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
 ```
+
+## Nightly mirror to a GitLab wiki
+
+`export-to-gitlab-wiki.sh` pushes a plain-markdown copy of every collection to a
+GitLab wiki repo each night. Portability insurance, not a backup — see
+`EXPORT-TO-WIKI.md`.
 
 ## For people using the wiki
 

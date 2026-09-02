@@ -1,6 +1,6 @@
 import Router from "koa-router";
 import { Op, Sequelize } from "sequelize";
-import { TextEditMode } from "@shared/types";
+import { TextEditMode, UserRole } from "@shared/types";
 import auth from "@server/middlewares/authentication";
 import { transaction } from "@server/middlewares/transaction";
 import validate from "@server/middlewares/validate";
@@ -9,7 +9,7 @@ import { DocumentHelper } from "@server/models/helpers/DocumentHelper";
 import documentUpdater from "@server/commands/documentUpdater";
 import { InvalidRequestError } from "@server/errors";
 import Logger from "@server/logging/Logger";
-import { authorize } from "@server/policies";
+import { authorize, can } from "@server/policies";
 import type { APIContext } from "@server/types";
 import env from "@server/env";
 import {
@@ -112,6 +112,15 @@ async function collectTasks(
   const results: { document: Document; tasks: TaggedTask[] }[] = [];
 
   for (const document of documents) {
+    // The workspace sweep selects by collectionIds(), which is READ access.
+    // Syncing rewrites task lines, so every document must be checked for write
+    // access separately — otherwise a reader could edit documents they can only
+    // view. The single-document path calls authorize() and throws; here we skip
+    // silently, since a sweep shouldn't fail because of one unwritable page.
+    if (!can(user, "update", document)) {
+      continue;
+    }
+
     // Serialized without the title so offsets line up with what
     // applyMarkdownToDocument sees when it resolves findText.
     const markdown = await DocumentHelper.toMarkdown(document, {
@@ -172,7 +181,10 @@ function assertConfigured() {
  */
 router.post(
   "gitlabTasks.status",
-  auth(),
+  // Admin only. The settings screen already hides itself from non-admins, but
+  // that is cosmetic — the API is what has to enforce it. Syncing writes to
+  // other people's documents and creates issues under a shared token.
+  auth({ role: UserRole.Admin }),
   validate(T.GitLabTasksStatusSchema),
   async (ctx: APIContext<T.GitLabTasksStatusReq>) => {
     const configured = GitLab.isConfigured();
@@ -208,7 +220,10 @@ router.post(
  */
 router.post(
   "gitlabTasks.push",
-  auth(),
+  // Admin only. The settings screen already hides itself from non-admins, but
+  // that is cosmetic — the API is what has to enforce it. Syncing writes to
+  // other people's documents and creates issues under a shared token.
+  auth({ role: UserRole.Admin }),
   validate(T.GitLabTasksPushSchema),
   transaction(),
   async (ctx: APIContext<T.GitLabTasksPushReq>) => {
@@ -337,7 +352,10 @@ router.post(
  */
 router.post(
   "gitlabTasks.pull",
-  auth(),
+  // Admin only. The settings screen already hides itself from non-admins, but
+  // that is cosmetic — the API is what has to enforce it. Syncing writes to
+  // other people's documents and creates issues under a shared token.
+  auth({ role: UserRole.Admin }),
   validate(T.GitLabTasksPullSchema),
   transaction(),
   async (ctx: APIContext<T.GitLabTasksPullReq>) => {

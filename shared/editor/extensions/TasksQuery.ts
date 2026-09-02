@@ -90,6 +90,124 @@ function escapeHtml(value: string): string {
 }
 
 /**
+ * A hashtag within a line of task text. Kept deliberately in step with the
+ * `tags` plugin's parser and `TagHighlight`: a boundary, a hash, then a
+ * letter-led term that may nest with slashes. Group 1 is the boundary.
+ */
+const TAG_RE =
+  /(^|[\s(\[])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
+
+const HEX_COLOR_RE = /^[0-9a-fA-F]{3,8}$/;
+
+/** True for `#fff`-style hex colours, which are not tags. */
+function isColorLike(tag: string): boolean {
+  return (
+    (tag.length === 3 ||
+      tag.length === 4 ||
+      tag.length === 6 ||
+      tag.length === 8) &&
+    HEX_COLOR_RE.test(tag)
+  );
+}
+
+/**
+ * Normalises a tag to its matchable key, and builds the tag-browser URL.
+ *
+ * Copied from `plugins/tags/shared/parser.ts` rather than imported: this file
+ * also compiles for the server, where a top-level `plugins/` path is not on the
+ * resolve list. If the URL shape there changes, change it here too.
+ */
+function normalizeTag(input: string): string {
+  return input.trim().replace(/^#/, "").replace(/[/-]+$/, "").toLowerCase();
+}
+
+function tagPath(tag: string): string {
+  return `/tags/${normalizeTag(tag)
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
+}
+
+/**
+ * Colour for a tag, chosen by its namespace so different kinds of tag read
+ * apart at a glance. Matched against the normalised (lowercased) tag as a path
+ * prefix; the first match wins, and anything unlisted keeps the editor accent.
+ * Add a row here to colour another namespace.
+ */
+const tagColors: { prefix: string; color: string; background: string }[] = [
+  { prefix: "pm/assign", color: "#2da44e", background: "rgba(45,164,78,0.14)" },
+  { prefix: "pm/project", color: "#8957e5", background: "rgba(137,87,229,0.14)" },
+];
+
+const defaultTagStyle = {
+  color: "var(--accent,#0366d6)",
+  background: "rgba(3,102,214,0.08)",
+};
+
+function tagStyle(rawTag: string): { color: string; background: string } {
+  const key = normalizeTag(rawTag);
+  for (const entry of tagColors) {
+    if (key === entry.prefix || key.startsWith(`${entry.prefix}/`)) {
+      return { color: entry.color, background: entry.background };
+    }
+  }
+  return defaultTagStyle;
+}
+
+/**
+ * Renders a task's display text to HTML. Each `#tag` becomes a link showing
+ * only its final segment — `#PM/assign/walischnicolas` reads as
+ * `walischnicolas` — coloured with the accent and pointing at the tag browser,
+ * matching how tags behave in the document body and the sidebar. Everything
+ * outside a tag is escaped verbatim.
+ */
+function renderTaskText(text: string): string {
+  let html = "";
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  TAG_RE.lastIndex = 0;
+
+  while ((match = TAG_RE.exec(text)) !== null) {
+    const boundary = match[1];
+    // A trailing slash or hyphen reads as punctuation, not part of the tag.
+    const rawTag = match[2].replace(/[/-]+$/, "");
+    if (!rawTag || isColorLike(rawTag)) {
+      continue;
+    }
+
+    const tagStart = match.index + boundary.length;
+    // Everything up to the hash is plain text.
+    html += escapeHtml(text.slice(cursor, tagStart));
+
+    // Show only the final segment of a nested tag; a top-level tag keeps its
+    // hash so a bare word isn't mistaken for ordinary text — mirrors the
+    // sidebar tag tree.
+    const segments = rawTag.split("/");
+    const label =
+      segments.length === 1
+        ? `#${rawTag}`
+        : segments[segments.length - 1];
+
+    const { color, background } = tagStyle(rawTag);
+
+    html +=
+      `<a href="${escapeHtml(tagPath(rawTag))}"` +
+      ` data-tag="${escapeHtml(normalizeTag(rawTag))}"` +
+      ` title="${escapeHtml(`#${rawTag}`)}"` +
+      ` style="color:${color};background:${background};` +
+      `border-radius:3px;padding:0 4px;text-decoration:none;cursor:pointer">` +
+      `${escapeHtml(label)}</a>`;
+
+    // Resume after `#` + the (trimmed) tag; any trailing punctuation the trim
+    // dropped stays in `text` and is escaped on the next pass.
+    cursor = tagStart + 1 + rawTag.length;
+  }
+
+  html += escapeHtml(text.slice(cursor));
+  return html;
+}
+
+/**
  * Formats an ISO date relative to today: "today", "in 3 days", "5 days ago".
  * Falls back to the raw date beyond a fortnight, where relative phrasing stops
  * being easier to read than the date itself.
@@ -285,7 +403,7 @@ class QueryRenderer {
           `<span style="flex:1">`,
           `<span style="${
             task.completed ? "opacity:0.5;text-decoration:line-through" : ""
-          }">${escapeHtml(task.text)}</span>`,
+          }">${renderTaskText(task.text)}</span>`,
           meta.length
             ? ` <span style="font-size:0.85em">· ${meta.join(" · ")}</span>`
             : "",

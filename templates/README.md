@@ -1,8 +1,14 @@
 # Templates
 
-Starting points for the two page types a lab writes most. Both have the tag
+Starting points for the page types a lab writes most. Each has the tag
 conventions already embedded, so nobody has to remember the syntax — completing
 a stub is easier than recalling `#PM/gitlab/<repo>` from memory.
+
+| Template | For |
+| --- | --- |
+| `weekly-meeting.md` | The recurring group meeting. Carries its own actions forward. |
+| `meeting-minutes.md` | One-off or ad-hoc meetings |
+| `experiment-log.md` | A single experiment or run |
 
 ## Installing them
 
@@ -29,6 +35,23 @@ Templates also make search work. Fixed headings mean `text includes Deviations`
 finds every experiment that recorded one, across everybody's pages.
 
 They cost nothing on upgrade — they're documents, not code.
+
+## A note on the weekly template
+
+It opens with two **Tasks query** blocks rather than a "carried over from last
+week" heading. Those fill themselves in from every page in the wiki, so nobody
+copies actions forward and nothing is lost when someone forgets.
+
+Two consequences worth understanding before you adapt it:
+
+- **Run a GitLab pull before the meeting**, or work already closed still shows
+  as open. Making that the chair's job is the simplest fix.
+- **An action with no `[due::]` never appears in those blocks.** That's the one
+  way a task can drop out of the weekly cycle entirely, which is why the
+  template says so twice.
+
+The blocks need their language set to *Tasks query* from the dropdown after
+pasting — markdown can't carry that attribute.
 
 ## Adapting them
 

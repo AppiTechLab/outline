@@ -195,7 +195,7 @@ function renderTaskText(text: string): string {
       ` data-tag="${escapeHtml(normalizeTag(rawTag))}"` +
       ` title="${escapeHtml(`#${rawTag}`)}"` +
       ` style="color:${color};background:${background};` +
-      `border-radius:3px;padding:0 4px;text-decoration:none;cursor:pointer">` +
+      `border-radius:3px;padding:0 4px;font-size:0.85em;text-decoration:none;cursor:pointer">` +
       `${escapeHtml(label)}</a>`;
 
     // Resume after `#` + the (trimmed) tag; any trailing punctuation the trim

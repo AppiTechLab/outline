@@ -3,6 +3,7 @@ import DateTime from "../extensions/DateTime";
 import DeleteNearAtom from "../extensions/DeleteNearAtom";
 import HeadingPrefix from "../extensions/HeadingPrefix";
 import History from "../extensions/History";
+import HtmlPreview from "../extensions/HtmlPreview";
 import InputRuleUndo from "../extensions/InputRuleUndo";
 import MaxLength from "../extensions/MaxLength";
 import TasksQuery from "../extensions/TasksQuery";
@@ -117,6 +118,9 @@ export const richExtensions: Nodes = [
   // Renders results beneath ```tasks code fences. Must come after CodeFence so
   // the node type exists by the time the decoration plugin runs.
   TasksQuery,
+  // Renders a sandboxed HTML/MHTML preview beneath ```htmlpreview code fences.
+  // Same ordering constraint as TasksQuery: after CodeFence.
+  HtmlPreview,
   Blockquote,
   Embed,
   Attachment,

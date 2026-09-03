@@ -202,6 +202,13 @@ export const codeLanguages: Record<string, CodeLanguage> = {
     label: "Tasks query",
     loader: () => import("refractor/lang/yaml").then((m) => m.default),
   },
+  htmlpreview: {
+    // Highlighted as markup inside the fence; rendered live below it by the
+    // HtmlPreview extension. Accepts plain HTML or a pasted MHTML archive.
+    lang: "markup",
+    label: "HTML (rendered)",
+    loader: () => import("refractor/lang/markup").then((m) => m.default),
+  },
   nginx: {
     lang: "nginx",
     label: "Nginx",

@@ -98,9 +98,7 @@ async function collectTasks(
           Sequelize.literal(
             `"document"."content"::text ILIKE '%${tagPrefix}/gitlab/%'`
           ),
-          Sequelize.literal(
-            `"document"."text" ILIKE '%${tagPrefix}/gitlab/%'`
-          ),
+          Sequelize.literal(`"document"."text" ILIKE '%${tagPrefix}/gitlab/%'`),
         ],
       },
       order: [["updatedAt", "DESC"]],

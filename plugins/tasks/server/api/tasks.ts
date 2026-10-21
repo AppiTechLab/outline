@@ -100,7 +100,9 @@ router.post(
         // deserialized. Covers both the Prosemirror snapshot and the legacy
         // markdown column.
         [Op.or]: [
-          Sequelize.literal(`"document"."content"::text LIKE '%checkbox_item%'`),
+          Sequelize.literal(
+            `"document"."content"::text LIKE '%checkbox_item%'`
+          ),
           Sequelize.literal(`"document"."text" LIKE '%- [%'`),
         ],
       },

@@ -94,8 +94,7 @@ function escapeHtml(value: string): string {
  * `tags` plugin's parser and `TagHighlight`: a boundary, a hash, then a
  * letter-led term that may nest with slashes. Group 1 is the boundary.
  */
-const TAG_RE =
-  /(^|[\s([])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
+const TAG_RE = /(^|[\s([])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
 
 const HEX_COLOR_RE = /^[0-9a-fA-F]{3,8}$/;
 
@@ -118,7 +117,11 @@ function isColorLike(tag: string): boolean {
  * resolve list. If the URL shape there changes, change it here too.
  */
 function normalizeTag(input: string): string {
-  return input.trim().replace(/^#/, "").replace(/[/-]+$/, "").toLowerCase();
+  return input
+    .trim()
+    .replace(/^#/, "")
+    .replace(/[/-]+$/, "")
+    .toLowerCase();
 }
 
 function tagPath(tag: string): string {
@@ -136,7 +139,11 @@ function tagPath(tag: string): string {
  */
 const tagColors: { prefix: string; color: string; background: string }[] = [
   { prefix: "pm/assign", color: "#2da44e", background: "rgba(45,164,78,0.14)" },
-  { prefix: "pm/project", color: "#8957e5", background: "rgba(137,87,229,0.14)" },
+  {
+    prefix: "pm/project",
+    color: "#8957e5",
+    background: "rgba(137,87,229,0.14)",
+  },
 ];
 
 const defaultTagStyle = {
@@ -184,9 +191,7 @@ function renderTaskText(text: string): string {
     // sidebar tag tree.
     const segments = rawTag.split("/");
     const label =
-      segments.length === 1
-        ? `#${rawTag}`
-        : segments[segments.length - 1];
+      segments.length === 1 ? `#${rawTag}` : segments[segments.length - 1];
 
     const { color, background } = tagStyle(rawTag);
 
@@ -417,9 +422,7 @@ class QueryRenderer {
         `<div style="opacity:0.5;margin-top:0.5em;font-size:0.85em">${
           data.total
         } task${data.total === 1 ? "" : "s"}${
-          data.tasks.length < data.total
-            ? `, showing ${data.tasks.length}`
-            : ""
+          data.tasks.length < data.total ? `, showing ${data.tasks.length}` : ""
         }${
           data.truncated
             ? ` · only the ${data.scanned} most recently updated documents were searched`

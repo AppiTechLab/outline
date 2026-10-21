@@ -74,12 +74,14 @@ function isColorLike(tag: string): boolean {
  * anyway, because a heading's hash is followed by a space.
  */
 function stripNonTagRegions(markdown: string): string {
-  return markdown
-    .replace(CODE_RE, " ")
-    .replace(LINK_TARGET_RE, " ")
-    .replace(BARE_URL_RE, " ")
-    // After the strips, so an escaped hash inside code is already gone.
-    .replace(ESCAPED_HASH_RE, "#");
+  return (
+    markdown
+      .replace(CODE_RE, " ")
+      .replace(LINK_TARGET_RE, " ")
+      .replace(BARE_URL_RE, " ")
+      // After the strips, so an escaped hash inside code is already gone.
+      .replace(ESCAPED_HASH_RE, "#")
+  );
 }
 
 /**
@@ -170,7 +172,11 @@ export function countTags(documents: Map<string, string>[]): TagCount[] {
  * `Project/Alpha` and `project/alpha` all resolve to the same thing.
  */
 export function normalizeTag(input: string): string {
-  return input.trim().replace(/^#/, "").replace(/[/-]+$/, "").toLowerCase();
+  return input
+    .trim()
+    .replace(/^#/, "")
+    .replace(/[/-]+$/, "")
+    .toLowerCase();
 }
 
 /**
@@ -260,7 +266,9 @@ export function findTagLines(
         occurrence,
         // The raw line rather than the stripped one, so code and links read
         // normally in the results; only the serializer's escapes are undone.
-        text: (displayLines[lineNumber] ?? "").replace(/\\([#\-*+:])/g, "$1").trim(),
+        text: (displayLines[lineNumber] ?? "")
+          .replace(/\\([#\-*+:])/g, "$1")
+          .trim(),
         anchor: anchorId(wanted, occurrence),
       });
       occurrence++;

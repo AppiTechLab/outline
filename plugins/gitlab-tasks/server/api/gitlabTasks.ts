@@ -1,4 +1,4 @@
-import Router from "koa-router";
+import Router from "@koa/router";
 import { Op, Sequelize } from "sequelize";
 import { TextEditMode, UserRole } from "@shared/types";
 import auth from "@server/middlewares/authentication";

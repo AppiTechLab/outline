@@ -161,8 +161,10 @@ const TagMenu = (props: Props) => {
     }
   }, [isActive, loaded, items.length, onClose]);
 
-  const renderMenuItem = React.useCallback(
-    (item: TagItem, _index: number, options) => (
+  const renderMenuItem = React.useCallback<
+    SuggestionsMenuProps<TagItem>["renderMenuItem"]
+  >(
+    (item, _index, options) => (
       <SuggestionsMenuItem {...options} title={item.title} />
     ),
     []

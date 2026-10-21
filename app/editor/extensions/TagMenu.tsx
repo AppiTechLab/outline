@@ -2,7 +2,10 @@ import { action } from "mobx";
 import { InputRule } from "prosemirror-inputrules";
 import type { EditorState } from "prosemirror-state";
 import type { WidgetProps } from "@shared/editor/lib/Extension";
-import { isTriggerMarked } from "@shared/editor/plugins/SuggestionsMenuPlugin";
+import {
+  applyMatch,
+  isTriggerMarked,
+} from "@shared/editor/plugins/SuggestionsMenuPlugin";
 import { isInCode } from "@shared/editor/queries/isInCode";
 import Suggestion from "~/editor/extensions/Suggestion";
 import TagMenu from "../components/TagMenu";
@@ -51,29 +54,41 @@ export default class TagMenuExtension extends Suggestion {
   inputRules = () => [
     new InputRule(
       this.openRegex,
-      action(
-        (
-          state: EditorState,
-          match: RegExpMatchArray,
-          _start: number,
-          end: number
-        ) => {
-          const { parent } = state.selection.$from;
+      (
+        state: EditorState,
+        match: RegExpMatchArray,
+        _start: number,
+        end: number
+      ) => {
+        const { parent } = state.selection.$from;
 
-          if (
-            match &&
-            (parent.type.name === "paragraph" ||
-              parent.type.name === "heading") &&
-            (!isInCode(state) || this.options.enabledInCode) &&
-            (this.enabledInMarks || !isTriggerMarked(state, end, match))
-          ) {
-            this.state.open = true;
-            this.state.query = match[1];
-          }
-
-          return null;
+        if (
+          match &&
+          (parent.type.name === "paragraph" ||
+            parent.type.name === "heading") &&
+          (!isInCode(state) || this.options.enabledInCode) &&
+          (this.enabledInMarks ||
+            !isTriggerMarked(state, end, match, this.triggerLength))
+        ) {
+          // Deferred for the same reason as the base implementation: the view
+          // is mid DOM-read when input rules run. `applyMatch` records the
+          // query and trigger position; opening is forced afterwards because
+          // its own open rule is the length guard described above.
+          setTimeout(
+            action(() => {
+              applyMatch(this.state, match, {
+                triggerLength: this.triggerLength,
+                cursorPos: this.editor.view.state.selection.from,
+                canOpen: false,
+              });
+              this.state.open = true;
+            }),
+            0
+          );
         }
-      )
+
+        return null;
+      }
     ),
   ];
 

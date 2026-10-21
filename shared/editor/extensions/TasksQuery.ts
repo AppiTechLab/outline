@@ -95,7 +95,7 @@ function escapeHtml(value: string): string {
  * letter-led term that may nest with slashes. Group 1 is the boundary.
  */
 const TAG_RE =
-  /(^|[\s(\[])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
+  /(^|[\s([])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
 
 const HEX_COLOR_RE = /^[0-9a-fA-F]{3,8}$/;
 

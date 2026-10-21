@@ -14,7 +14,7 @@
  * only partially — see `isColorLike` for the rest. The leading-boundary
  * requirement is what keeps `page#section` and `https://x/y#anchor` out.
  */
-const TAG_RE = /(^|[\s(\[])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
+const TAG_RE = /(^|[\s([])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
 
 /** Fenced code blocks and inline code spans, removed before scanning. */
 const CODE_RE = /```[\s\S]*?```|`[^`\n]*`/g;

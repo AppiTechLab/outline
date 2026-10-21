@@ -1,4 +1,4 @@
-import Router from "koa-router";
+import Router from "@koa/router";
 import { Op, Sequelize } from "sequelize";
 import type { Node as ProsemirrorNode } from "prosemirror-model";
 import auth from "@server/middlewares/authentication";

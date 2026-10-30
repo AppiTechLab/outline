@@ -9,7 +9,7 @@ ARG APP_PATH=/opt/outline
 # ---------------------------------------------------------------------------
 # Stage 1: install dependencies and build the app (mirrors ../Dockerfile.base)
 # ---------------------------------------------------------------------------
-FROM node:26.3.0 AS base
+FROM node:26.12.1 AS base
 
 ARG APP_PATH
 WORKDIR $APP_PATH
@@ -39,7 +39,7 @@ RUN yarn workspaces focus --production && yarn cache clean
 # ---------------------------------------------------------------------------
 # Stage 2: slim runtime image (mirrors ../Dockerfile)
 # ---------------------------------------------------------------------------
-FROM node:26.3.0-slim AS runner
+FROM node:26.12.1-slim AS runner
 
 LABEL org.opencontainers.image.source="https://github.com/outline/outline"
 

@@ -32,6 +32,7 @@ import { DraftsLink } from "./components/DraftsLink";
 import DragPlaceholder from "./components/DragPlaceholder";
 import { DismissableSidebarAction } from "./components/DismissableSidebarAction";
 import HistoryNavigation from "./components/HistoryNavigation";
+import { PersonalDocs } from "./components/PersonalDocs";
 import Section from "./components/Section";
 import TagsLink from "../../../plugins/tags/client/TagsLink";
 import SharedWithMe from "./components/SharedWithMe";
@@ -80,6 +81,7 @@ function AppSidebar() {
     [SidebarSection.Starred]: <Starred />,
     [SidebarSection.SharedWithMe]: <SharedWithMe />,
     [SidebarSection.Collections]: <Collections />,
+    [SidebarSection.Personal]: <PersonalDocs />,
   };
 
   return (

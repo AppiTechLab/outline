@@ -150,6 +150,7 @@ here.
 | `app/editor/components/TagMenu.tsx` | `SuggestionsMenu` calling `onClick` for items named `noop` | Menu appears, selecting a tag inserts nothing |
 | `app/editor/extensions/TagHighlight.ts` | `Editor.scrollToAnchor` resolving `window.location.hash` to an element | Tags highlight, but line links land at the top of the document |
 | `shared/editor/extensions/TasksQuery.ts` | The fence node being named `code_fence`; `Extension.allowInReadOnly` | Query blocks render as plain code |
+| `shared/editor/lib/code.ts` (`tasks`, `htmlpreview` entries) | `refractor` import paths — v1.12.0 moved to refractor 5, where `refractor/lang/yaml` became `refractor/yaml` | Client build fails: cannot resolve `refractor/lang/…`. Merges cleanly, so only the build catches it |
 | `app/components/Sidebar/App.tsx` | The surrounding sidebar structure | Conflicts loudly — the good kind |
 | `plugins/*/server` | `DocumentHelper.toMarkdown`, `documentUpdater` patch mode, `PluginManager` hooks | API errors, visible in logs |
 

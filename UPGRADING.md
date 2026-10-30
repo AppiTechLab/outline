@@ -47,10 +47,17 @@ what will conflict and what to test afterwards.
 
 ```powershell
 cd D:\Projects\outline\deploy
-docker compose exec -T postgres pg_dump -U outline outline | gzip > backup-$(Get-Date -Format yyyy-MM-dd).sql.gz
+docker compose up -d postgres
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > /tmp/backup.sql.gz'
+docker compose cp postgres:/tmp/backup.sql.gz backup-$(Get-Date -Format yyyy-MM-dd).sql.gz
+Get-Item backup-*.sql.gz | Select-Object Name, Length   # must be well above 0
 ```
 
 Migrations are one-way. This is the only way back.
+
+The dump is compressed *inside* the container and copied out with `docker compose
+cp` on purpose: Windows PowerShell has no `gzip`, and its `>` redirection
+re-encodes output as UTF-16, which produces a dump `psql` cannot restore.
 
 ### 2. Merge upstream — on your own machine, not the server
 
@@ -124,18 +131,33 @@ git push origin main          # goes to GitHub and GitLab
 
 ### 7. Deploy on the server
 
-Only now, and only from GitLab:
+Only now, and only from GitLab. The server checkout is **`/opt/apps/wiki`**
+and runs from a server-only `compose.yml` in that folder (see
+`deploy/DEPLOY-HEVS.md`), so plain `docker compose` with no `-f` flags:
 
 ```bash
-cd /opt/apps/outline
+# 1. Back up first, into your home folder (/srv/data/... is root-owned)
+sudo docker exec outline-postgres-1 sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  | gzip > ~/pre-upgrade-$(date +%F).sql.gz
+ls -lh ~/pre-upgrade-*.sql.gz            # several MB; stop here if it's tiny
+
+# 2. Pull and rebuild
+cd /opt/apps/wiki
 git pull
-cd deploy
-docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+git log --oneline -1                     # the commit you just pushed
+grep '"version"' package.json
+sudo docker compose up -d --build
+sudo docker compose logs -f outline      # Ctrl+C to stop following; the app keeps running
 ```
 
-Steps 1 and 5 apply again here — back up the database first, and re-run the
-manual checks against the real instance. Verifying locally proves the merge
-resolved; it doesn't prove the deployment works.
+`git status` on the server always shows ` D docker-compose.yml` and
+`?? compose.yml`. That's expected and doesn't block `git pull` as long as
+upstream doesn't add a `compose.yml` or modify `docker-compose.yml`. If a pull
+refuses because of either, check with `git diff HEAD..origin/main --stat` first.
+
+Step 5 applies again here: re-run the manual checks against the real instance.
+Verifying locally proves the merge resolved; it doesn't prove the deployment
+works.
 
 ---
 
@@ -184,15 +206,41 @@ never writes that column. Only the prefilters still mention it.
 
 ## If an upgrade goes badly
 
+> **Check the backup from step 1 exists before running any of this.**
+> `docker volume rm` deletes the database permanently. Without a backup there is
+> nothing to restore, and you start from an empty wiki.
+
+On your machine:
+
 ```powershell
 cd D:\Projects\outline
 git switch main                    # your branch is abandoned, main is untouched
+Get-Item deploy\backup-*.sql.gz    # stop here if this finds nothing
 
 cd deploy
 docker compose down
 docker volume rm outline_postgres-data
-docker compose up -d               # recreates an empty database
-Get-Content backup-YYYY-MM-DD.sql.gz | gzip -d | docker compose exec -T postgres psql -U outline outline
+docker compose up -d postgres      # recreates an empty database
+Start-Sleep 10                     # let Postgres finish starting
+docker compose cp backup-YYYY-MM-DD.sql.gz postgres:/tmp/restore.sql.gz
+docker compose exec -T postgres sh -c 'gunzip -c /tmp/restore.sql.gz | psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker compose up -d --build       # rebuilds from main, i.e. the previous version
+```
+
+After this, the code is back on `main`. Remember to `git switch` to the upgrade
+branch again before retrying, or the rebuild silently produces the old version.
+
+On the server, the same idea. Roll the code back to the commit you were on, then
+restore the dump taken in step 7:
+
+```bash
+cd /opt/apps/wiki
+sudo docker compose stop outline
+git log --oneline -5                     # find the previous commit
+git reset --keep <previous-commit>      # --keep leaves compose.yml and the local deletion alone
+sudo docker exec outline-postgres-1 sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+gunzip -c ~/pre-upgrade-YYYY-MM-DD.sql.gz | sudo docker exec -i outline-postgres-1 sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+sudo docker compose up -d --build
 ```
 
 Restore is only necessary if the failed upgrade ran migrations. If the app never

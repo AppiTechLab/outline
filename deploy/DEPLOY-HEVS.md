@@ -10,6 +10,26 @@ and leaves Caddy out.
 
 ---
 
+## As actually deployed
+
+The *Deploy* section below is the original plan. The running server differs
+from it, and these are the facts to use day to day:
+
+| | |
+| --- | --- |
+| Checkout | `/opt/apps/wiki` (not `/opt/apps/outline`) |
+| Remote | `git@gitlab.com:appitech/internal/wiki.git` |
+| Compose file | `/opt/apps/wiki/compose.yml`, server-only and untracked. It builds `deploy/Dockerfile` into `outline-local:latest`. |
+| Environment | `/opt/apps/wiki/.env` |
+| Containers | `outline-outline-1`, `outline-postgres-1`, `outline-redis-1`, `outline-postgres-backup-1` |
+| Commands | `sudo docker compose …` from `/opt/apps/wiki`, with no `-f` flags |
+
+The repository's root `docker-compose.yml` is deleted in the server checkout,
+so `git status` shows ` D docker-compose.yml` and `?? compose.yml`. That's
+expected.
+
+---
+
 ## Before you start
 
 Ask for a DNS name — `wiki.appitech.hevs.ch` follows the existing pattern
@@ -175,10 +195,15 @@ GitLab account, if you have one. Expect a refusal after the GitLab redirect.
 Per section 2.2, plus the review step this fork needs:
 
 ```bash
-cd /opt/apps/outline
+# Back up first. /srv/data/outline/backups is root-owned, so dump to your home folder
+sudo docker exec outline-postgres-1 sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  | gzip > ~/pre-upgrade-$(date +%F).sql.gz
+ls -lh ~/pre-upgrade-*.sql.gz
+
+cd /opt/apps/wiki
 git pull
-cd deploy
-docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+sudo docker compose up -d --build
+sudo docker compose logs -f outline
 ```
 
 The server's `origin` is `gitlab.com/appitech/internal/wiki`. It cannot reach
@@ -198,15 +223,16 @@ The Sinf Bronze service gives daily VM snapshots with 30-day retention. That
 covers catastrophe, but a snapshot of a running Postgres is *crash-consistent*,
 not clean — it's a recoverable state, not a guaranteed-good dump.
 
-Add a logical dump alongside it:
+Logical dumps already run alongside it: `compose.yml` includes an
+`outline-postgres-backup-1` service (`prodrigestivill/postgres-backup-local`)
+that takes scheduled `pg_dump`s. Its schedule, retention and output folder are
+set in `compose.yml`.
 
-```bash
-0 3 * * * cd /opt/apps/outline/deploy && docker compose exec -T postgres \
-  pg_dump -U outline outline | gzip > /srv/data/outline/backups/outline-$(date +\%F).sql.gz
-```
+Before an upgrade, take a manual dump as well, so the restore point is from
+right before the migrations run. This is the command shown under *Updates*. It
+writes to your home folder because `/srv/data/outline/backups` is root-owned.
 
-Prune older than 30 days to match the snapshot policy. Uploads live in
-`/srv/data/outline/uploads` and are covered by the snapshot.
+Uploads live in `/srv/data/outline/uploads` and are covered by the snapshot.
 
 This matters more than usual here: **upgrades run migrations automatically on
 boot**, so rolling back needs a database restore rather than a `git checkout`.
@@ -219,7 +245,7 @@ To match the format of the other entries:
 
 | | |
 | --- | --- |
-| **Répertoire** | `/opt/apps/outline` |
+| **Répertoire** | `/opt/apps/wiki` |
 | **Services** | Outline (Node.js), PostgreSQL, Redis |
 | **URL** | `https://wiki.appitech.hevs.ch/` |
 | **Images** | `node:26-slim` (built), `postgres:16-alpine`, `redis:7-alpine` |

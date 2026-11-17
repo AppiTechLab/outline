@@ -23,7 +23,7 @@ export const pluginKey = new PluginKey("tag-highlight");
  * hash, then a letter-led term that may contain slashes. Group 1 is the
  * boundary, so the tag itself begins after it.
  */
-const TAG_RE = /(^|[\s(\[])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
+const TAG_RE = /(^|[\s([])#([A-Za-zÀ-ÿ][\wÀ-ÿ-]*(?:\/[\wÀ-ÿ-]+)*)/gu;
 
 const HEX_COLOR_RE = /^[0-9a-fA-F]{3,8}$/;
 
